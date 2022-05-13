@@ -1,12 +1,13 @@
 {
   "name": "erc1155d",
   "dependencies": {
-    "@openzeppelin/test-helpers": "^0.5.15",
-    "hardhat": "^2.9.1",
     "@nomiclabs/hardhat-truffle5": "^2.0.5",
     "@nomiclabs/hardhat-web3": "^2.0.0",
+    "@openzeppelin/contracts": "^4.6.0",
     "@openzeppelin/docs-utils": "^0.1.0",
+    "@openzeppelin/test-helpers": "^0.5.15",
     "chai": "^4.2.0",
+    "hardhat": "^2.9.1",
     "hardhat-gas-reporter": "^1.0.4",
     "keccak256": "^1.0.2",
     "prettier": "^2.3.0",
