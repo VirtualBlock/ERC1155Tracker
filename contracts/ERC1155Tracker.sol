@@ -1,49 +1,96 @@
 // SPDX-License-Identifier: MIT
-// Donkeverse Contracts v0.0.1
+// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC1155/IERC1155.sol";
-import "@openzeppelin/contracts/token/ERC1155/IERC1155Receiver.sol";
-import "@openzeppelin/contracts/token/ERC1155/extensions/IERC1155MetadataURI.sol";
-import "@openzeppelin/contracts/utils/Address.sol";
-import "@openzeppelin/contracts/utils/Context.sol";
-import "@openzeppelin/contracts/utils/introspection/ERC165.sol";
+// import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
+// import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+// import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+// import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/IERC1155MetadataURIUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+
+import "./interfaces/IERC1155TrackerUpgradable.sol";
+import "./interfaces/IAvatar.sol";
 
 /**
- * @dev Implementation of the basic standard multi-token.
- * See https://eips.ethereum.org/EIPS/eip-1155
- * Originally based on code by Enjin: https://github.com/enjin/erc-1155
- *
- * _Available since v3.1._
+ * @title ERC1155 Tracker Upgradable
+ * @dev This contract is to be attached to an ERC721 contract and mapped to its tokens
  */
-contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
-    using Address for address;
+contract ERC1155Tracker is  Initializable, ContextUpgradeable, ERC165Upgradeable, IERC1155TrackerUpgradable {
+    using AddressUpgradeable for address;
 
-    uint256 public constant MAX_SUPPLY = 5000;
-
-    address[MAX_SUPPLY] internal _owners;
+    // Mapping from token ID to account balances
+    // mapping(uint256 => mapping(address => uint256)) private _balances;
 
     // Mapping from account to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
+
+    //TODO: Balances
+    mapping(uint256 => mapping(uint256 => uint256)) private _balances;
+
+    //TODO: Target Contract
+    address _targetContract;
+
+
+    /// Get Target Contract
+    function getTargetContract() public view virtual override returns (address) {
+        return _targetContract;
+    }
+
+    /// Set Target Contract
+    function _setTargetContract(address targetContract) internal virtual {
+        //Validate IERC721
+        // require(IERC165(targetContract).supportsInterface(type(IERC721).interfaceId), "Target Expected to Support IERC721");
+        require(IERC165(targetContract).supportsInterface(type(IAvatar).interfaceId), "Target contract expected to support IAvatar");
+        _targetContract = targetContract;
+        // _targetContract = IERC721(targetContract);
+    }
+
+
+
+
+    /* REMOVED - Unecessary
     // Used as the URI for all token types by relying on ID substitution, e.g. https://token-cdn-domain/{id}.json
     string private _uri;
-
+    */
     /**
      * @dev See {_setURI}.
      */
-    constructor(string memory uri_) {
+     /* REMOVED - Unecessary
+    function __ERC1155_init(string memory uri_) internal onlyInitializing {
+        __ERC1155_init_unchained(uri_);
+    }
+
+    function __ERC1155_init_unchained(string memory uri_) internal onlyInitializing {
         _setURI(uri_);
+    }
+    */
+
+    /// Get a Token ID Based on account address
+    function _getExtTokenId(address account) internal returns(uint256) {
+        require(account != address(0), "ERC1155Tracker: address zero is not a valid account");
+        require(account != _targetContract, "ERC1155Tracker: source contract address is not a valid account");
+
+        //Run function on destination contract
+        // return IAvatar(_targetContract).tokenByAddress(account);
+        uint256 ownerToken = IAvatar(_targetContract).tokenByAddress(account);
+        require(ownerToken != 0, "ERC1155Tracker: account not found on source contract");
+        return ownerToken;
     }
 
     /**
      * @dev See {IERC165-supportsInterface}.
      */
-    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165, IERC165) returns (bool) {
+    function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165Upgradeable, IERC165Upgradeable) returns (bool) {
         return
-            interfaceId == type(IERC1155).interfaceId ||
-            interfaceId == type(IERC1155MetadataURI).interfaceId ||
+            // interfaceId == type(IERC1155Upgradeable).interfaceId ||
+            // interfaceId == type(IERC1155MetadataURIUpgradeable).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -57,9 +104,11 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
      * Clients calling this function must replace the `\{id\}` substring with the
      * actual token type ID.
      */
+     /* REMOVED - Unecessary
     function uri(uint256) public view virtual override returns (string memory) {
         return _uri;
     }
+    */
 
     /**
      * @dev See {IERC1155-balanceOf}.
@@ -69,10 +118,11 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
      * - `account` cannot be the zero address.
      */
     function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {
-        require(account != address(0), "ERC1155: balance query for the zero address");
-        require(id < MAX_SUPPLY, "ERC1155D: id exceeds maximum");
+        require(account != address(0), "ERC1155: address zero is not a valid owner");
+        // return _balances[id][account];
 
-        return _owners[id] == account ? 1 : 0;
+        uint256 ownerToken = _getExtTokenId(account);
+        return _balances[id][ownerToken];
     }
 
     /**
@@ -175,20 +225,24 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
 
-        require(_owners[id] == from && amount < 2, "ERC1155: insufficient balance for transfer");
+        uint256 ownerFrom = _getExtTokenId(from);
+        uint256 ownerTo = _getExtTokenId(to);
 
-        // The ERC1155 spec allows for transfering zero tokens, but we are still expected
-        // to run the other checks and emit the event. But we don't want an ownership change
-        // in that case
-        if (amount == 1) {
-            _owners[id] = to;
+        // uint256 fromBalance = _balances[id][from];
+        uint256 fromBalance = _balances[id][ownerFrom];
+        require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
+        unchecked {
+            // _balances[id][from] = fromBalance - amount;
+            _balances[id][ownerFrom] = fromBalance - amount;
         }
+        // _balances[id][to] += amount;
+        _balances[id][ownerTo] += amount;
 
         emit TransferSingle(operator, from, to, id, amount);
 
         _afterTokenTransfer(operator, from, to, ids, amounts, data);
 
-        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);
+        // _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);
     }
 
     /**
@@ -217,19 +271,21 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
 
         for (uint256 i = 0; i < ids.length; ++i) {
             uint256 id = ids[i];
+            uint256 amount = amounts[i];
 
-            require(_owners[id] == from && amounts[i] < 2, "ERC1155: insufficient balance for transfer");
-
-            if (amounts[i] == 1) {
-                _owners[id] = to;
+            uint256 fromBalance = _balances[id][from];
+            require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
+            unchecked {
+                _balances[id][from] = fromBalance - amount;
             }
+            _balances[id][to] += amount;
         }
 
         emit TransferBatch(operator, from, to, ids, amounts);
 
         _afterTokenTransfer(operator, from, to, ids, amounts, data);
 
-        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
+        // _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
     }
 
     /**
@@ -251,9 +307,11 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
      * Because these URIs cannot be meaningfully represented by the {URI} event,
      * this function emits no events.
      */
+     /* REMOVED - Unecessary
     function _setURI(string memory newuri) internal virtual {
         _uri = newuri;
     }
+    */
 
     /**
      * @dev Creates `amount` tokens of token type `id`, and assigns them to `to`.
@@ -266,7 +324,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
      */
-
     function _mint(
         address to,
         uint256 id,
@@ -274,8 +331,6 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         bytes memory data
     ) internal virtual {
         require(to != address(0), "ERC1155: mint to the zero address");
-        require(amount < 2, "ERC1155D: exceeds supply");
-        require(id < MAX_SUPPLY, "ERC1155D: invalid id");
 
         address operator = _msgSender();
         uint256[] memory ids = _asSingletonArray(id);
@@ -283,39 +338,12 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
 
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
 
-        // The ERC1155 spec allows for transfering zero tokens, but we are still expected
-        // to run the other checks and emit the event. But we don't want an ownership change
-        // in that case
-        if (amount == 1) {
-            _owners[id] = to;
-        }
-
+        _balances[id][to] += amount;
         emit TransferSingle(operator, address(0), to, id, amount);
 
         _afterTokenTransfer(operator, address(0), to, ids, amounts, data);
 
-        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
-    }
-
-    /**
-     * @dev Creates `amount` tokens of token type `id`, and assigns them to `to`.
-     *
-     * Emits a {TransferSingle} event.
-     *
-     * Requirements:
-     *
-     * - `to` cannot be the zero address.
-     * - `id` must be less than MAX_SUPPLY;
-     * This does not implement smart contract checks according to ERC1155 so it exists as a separate function
-     */
-
-    function _mintSingle(address to, uint256 id) internal virtual {
-        require(to != address(0), "ERC1155: mint to the zero address"); // you can remove this if only minting to msg.sender
-        require(_owners[id] == address(0), "ERC1155D: supply exceeded");
-        require(id < MAX_SUPPLY, "ERC1155D: invalid id"); // you can remove this if the check is done outside
-
-        _owners[id] = to; // this can be made more efficient with assembly if you know what you are doing!
-        emit TransferSingle(to, address(0), to, id, 1);
+        // _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
     }
 
     /**
@@ -341,19 +369,14 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
 
         for (uint256 i = 0; i < ids.length; i++) {
-            require(amounts[i] < 2, "ERC1155D: exceeds supply");
-            require(_owners[ids[i]] == address(0), "ERC1155D: supply exceeded");
-
-            if (amounts[i] == 1) {
-                _owners[ids[i]] = to;
-            }
+            _balances[ids[i]][to] += amounts[i];
         }
 
         emit TransferBatch(operator, address(0), to, ids, amounts);
 
         _afterTokenTransfer(operator, address(0), to, ids, amounts, data);
 
-        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
+        // _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
     }
 
     /**
@@ -377,9 +400,10 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
 
         _beforeTokenTransfer(operator, from, address(0), ids, amounts, "");
 
-        require(_owners[id] == from && amount < 2, "ERC1155: burn amount exceeds balance");
-        if (amount == 1) {
-            _owners[id] = address(0);
+        uint256 fromBalance = _balances[id][from];
+        require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
+        unchecked {
+            _balances[id][from] = fromBalance - amount;
         }
 
         emit TransferSingle(operator, from, address(0), id, amount);
@@ -408,9 +432,12 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
 
         for (uint256 i = 0; i < ids.length; i++) {
             uint256 id = ids[i];
-            require(_owners[id] == from && amounts[i] < 2, "ERC1155: burn amount exceeds balance");
-            if (amounts[i] == 1) {
-                _owners[id] = address(0);
+            uint256 amount = amounts[i];
+
+            uint256 fromBalance = _balances[id][from];
+            require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
+            unchecked {
+                _balances[id][from] = fromBalance - amount;
             }
         }
 
@@ -492,6 +519,7 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         bytes memory data
     ) internal virtual {}
 
+    /* Unecessary, because token's aren't really controlled by that account anymore
     function _doSafeTransferAcceptanceCheck(
         address operator,
         address from,
@@ -501,8 +529,8 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         bytes memory data
     ) private {
         if (to.isContract()) {
-            try IERC1155Receiver(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {
-                if (response != IERC1155Receiver.onERC1155Received.selector) {
+            try IERC1155ReceiverUpgradeable(to).onERC1155Received(operator, from, id, amount, data) returns (bytes4 response) {
+                if (response != IERC1155ReceiverUpgradeable.onERC1155Received.selector) {
                     revert("ERC1155: ERC1155Receiver rejected tokens");
                 }
             } catch Error(string memory reason) {
@@ -522,10 +550,10 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
         bytes memory data
     ) private {
         if (to.isContract()) {
-            try IERC1155Receiver(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (
+            try IERC1155ReceiverUpgradeable(to).onERC1155BatchReceived(operator, from, ids, amounts, data) returns (
                 bytes4 response
             ) {
-                if (response != IERC1155Receiver.onERC1155BatchReceived.selector) {
+                if (response != IERC1155ReceiverUpgradeable.onERC1155BatchReceived.selector) {
                     revert("ERC1155: ERC1155Receiver rejected tokens");
                 }
             } catch Error(string memory reason) {
@@ -535,49 +563,19 @@ contract ERC1155 is Context, ERC165, IERC1155, IERC1155MetadataURI {
             }
         }
     }
+    */
 
-    function _asSingletonArray(uint256 element) internal pure returns (uint256[] memory) {
+    function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {
         uint256[] memory array = new uint256[](1);
         array[0] = element;
 
         return array;
     }
 
-    function _prepayGas(uint256 start, uint256 end) internal {
-        require(end <= MAX_SUPPLY, "ERC1155D: end id exceeds maximum");
-
-        for (uint256 i = start; i < end; i++) {
-
-            bytes32 slotValue;
-            assembly {
-                slotValue := sload(add(_owners.slot, i))
-            }
-
-            bytes32 leftmostBitSetToOne = slotValue | bytes32(uint256(1) << 255);
-            assembly {
-                sstore(add(_owners.slot, i), leftmostBitSetToOne)
-            }
-        }
-    }
-
-    function getOwnershipRecordOffChain() external view returns(address[MAX_SUPPLY] memory) {
-        return _owners;
-    }
-
-    function ownerOfERC721Like(uint256 id) external view returns(address) {
-        require(id < _owners.length, "ERC1155D: id exceeds maximum");
-        address owner = _owners[id];
-        require(owner != address(0), "ERC1155D: owner query for nonexistent token");
-        return owner;
-    }
-
-    function getERC721BalanceOffChain(address _address) external view returns(uint256) {
-        uint256 counter = 0;
-        for (uint256 i; i < _owners.length; i++) {
-            if (_owners[i] == _address) {
-                counter++;
-            }
-        }
-        return counter;
-    }
+    /**
+     * @dev This empty reserved space is put in place to allow future versions to add new
+     * variables without shifting down storage in the inheritance chain.
+     * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+     */
+    uint256[47] private __gap;
 }
