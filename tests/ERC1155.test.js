@@ -21,7 +21,9 @@ contract("ERC1155", function (accounts) {
   beforeEach(async function () {
     this.hub = await HubContract.new();
     this.avatar = await AvatarContract.new(this.hub.address);
-    this.token = await ERC1155Mock.new(initialURI);
+    console.log('Avatar Contract Deployed', this.avatar.address);
+    this.token = await ERC1155Mock.new(this.avatar.address);
+    console.log('ERC1155Tracker Contract Deployed', this.token.address);
   });
 
   shouldBehaveLikeERC1155(otherAccounts);
