@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.4;
 
-import "../ERC1155D.sol";
+// import "../ERC1155D.sol";
+import "../ERC1155Tracker.sol";
 
 /**
  * @title ERC1155Mock
  * This mock just publicizes internal functions for testing purposes
  */
 contract ERC1155Mock is ERC1155 {
-    constructor(string memory uri) ERC1155(uri) {}
 
-    function setURI(string memory newuri) public {
-        _setURI(newuri);
+    constructor(address targetContract) {
+        _setTargetContract(targetContract);
     }
 
     function mint(
