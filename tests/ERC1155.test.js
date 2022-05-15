@@ -10,6 +10,8 @@ const { expect } = require("chai");
 
 const { shouldBehaveLikeERC1155 } = require("./ERC1155.behavior");
 const ERC1155Mock = artifacts.require("ERC1155Mock");
+const HubContract = artifacts.require("Hub");
+const AvatarContract = artifacts.require("AvatarNFT");
 
 contract("ERC1155", function (accounts) {
   const [operator, tokenHolder, tokenBatchHolder, ...otherAccounts] = accounts;
@@ -17,6 +19,8 @@ contract("ERC1155", function (accounts) {
   const initialURI = "https://token-cdn-domain/{id}.json";
 
   beforeEach(async function () {
+    this.hub = await HubContract.new();
+    this.avatar = await AvatarContract.new(this.hub.address);
     this.token = await ERC1155Mock.new(initialURI);
   });
 
