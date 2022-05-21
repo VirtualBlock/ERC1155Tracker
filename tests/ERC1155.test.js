@@ -4,26 +4,41 @@ const {
   expectEvent,
   expectRevert,
 } = require("@openzeppelin/test-helpers");
+
+
 const { ZERO_ADDRESS } = constants;
 
 const { expect } = require("chai");
+
+// const  { ethers } = require("ethers");
 
 const { shouldBehaveLikeERC1155 } = require("./ERC1155.behavior");
 const ERC1155Mock = artifacts.require("ERC1155Mock");
 const HubContract = artifacts.require("Hub");
 const AvatarContract = artifacts.require("AvatarNFT");
+let test_uri = "ipfs://QmQxkoWcpFgMa7bCzxaANWtSt43J1iMgksjNnT4vM1Apd7"; //"TEST_URI";
+
 
 contract("ERC1155", function (accounts) {
-  const [operator, tokenHolder, tokenBatchHolder, ...otherAccounts] = accounts;
+  const [operator, tokenHolder, tokenBatchHolder, acc1, acc2, acc3, ...otherAccounts] = accounts;
 
   const initialURI = "https://token-cdn-domain/{id}.json";
-
-  beforeEach(async function () {
+  before(async function () {
+    
     this.hub = await HubContract.new();
     this.avatar = await AvatarContract.new(this.hub.address);
     console.log('Avatar Contract Deployed', this.avatar.address);
     this.token = await ERC1155Mock.new(this.avatar.address);
     console.log('ERC1155Tracker Contract Deployed', this.token.address);
+    
+    //Mint Some NFTs
+    // await this.avatar.connect(acc1).mint(test_uri);
+
+    // this.avatar2 = await ethers.getContractFactory("AvatarNFT").then(res => res.deploy());
+    // this.avatar2 = tokenHolder.deploy(AvatarContract, this.hub.address, {from: accounts[1]});
+    this.avatar2 = await AvatarContract.new(this.hub.address, {from: accounts[1]});
+
+
   });
 
   shouldBehaveLikeERC1155(otherAccounts);
@@ -32,7 +47,6 @@ contract("ERC1155", function (accounts) {
     const tokenId = new BN(1990);
     const mintAmount = new BN(1);
     const burnAmount = new BN(1);
-
     const tokenBatchIds = [new BN(2000), new BN(2010), new BN(2020)];
     const mintAmounts = [new BN(1), new BN(1), new BN(1)];
     const burnAmounts = [new BN(1), new BN(1), new BN(1)];
@@ -272,34 +286,4 @@ contract("ERC1155", function (accounts) {
     });
   });
 
-  describe("ERC1155MetadataURI", function () {
-    const firstTokenID = new BN("42");
-    const secondTokenID = new BN("1337");
-
-    it("emits no URI event in constructor", async function () {
-      await expectEvent.notEmitted.inConstruction(this.token, "URI");
-    });
-
-    it("sets the initial URI for all token types", async function () {
-      expect(await this.token.uri(firstTokenID)).to.be.equal(initialURI);
-      expect(await this.token.uri(secondTokenID)).to.be.equal(initialURI);
-    });
-
-    describe("_setURI", function () {
-      const newURI = "https://token-cdn-domain/{locale}/{id}.json";
-
-      it("emits no URI event", async function () {
-        const receipt = await this.token.setURI(newURI);
-
-        expectEvent.notEmitted(receipt, "URI");
-      });
-
-      it("sets the new URI for all token types", async function () {
-        await this.token.setURI(newURI);
-
-        expect(await this.token.uri(firstTokenID)).to.be.equal(newURI);
-        expect(await this.token.uri(secondTokenID)).to.be.equal(newURI);
-      });
-    });
-  });
 });
