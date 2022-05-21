@@ -3,6 +3,8 @@
 
 pragma solidity ^0.8.0;
 
+import "hardhat/console.sol";
+
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
@@ -21,7 +23,12 @@ import "./interfaces/IAvatar.sol";
  * @title ERC1155 Tracker Upgradable
  * @dev This contract is to be attached to an ERC721 contract and mapped to its tokens
  */
-abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeable, IERC1155TrackerUpgradable {
+abstract contract ERC1155 is 
+        Initializable, 
+        ContextUpgradeable, 
+        ERC165Upgradeable, 
+        IERC1155TrackerUpgradable {
+            
     using AddressUpgradeable for address;
 
     // Mapping from token ID to account balances
@@ -30,11 +37,10 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
     // Mapping from account to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
-
-    //TODO: Balances
+    // Manage Balances by External Token ID
     mapping(uint256 => mapping(uint256 => uint256)) private _balances;
 
-    //TODO: Target Contract
+    // Target Contract (External Source)
     address _targetContract;
 
 
@@ -44,7 +50,7 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
     }
 
     /// Set Target Contract
-    function _setTargetContract(address targetContract) internal virtual {
+    function __setTargetContract(address targetContract) internal virtual {
         //Validate IERC721
         // require(IERC165(targetContract).supportsInterface(type(IERC721).interfaceId), "Target Expected to Support IERC721");
         require(IERC165(targetContract).supportsInterface(type(IAvatar).interfaceId), "Target contract expected to support IAvatar");
@@ -52,36 +58,36 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
         // _targetContract = IERC721(targetContract);
     }
 
-
-
-
-    /* REMOVED - Unecessary
-    // Used as the URI for all token types by relying on ID substitution, e.g. https://token-cdn-domain/{id}.json
-    string private _uri;
-    */
-    /**
-     * @dev See {_setURI}.
-     */
-     /* REMOVED - Unecessary
-    function __ERC1155_init(string memory uri_) internal onlyInitializing {
-        __ERC1155_init_unchained(uri_);
+    /// Get a Token ID Based on account address (Throws)
+    function getExtTokenId(address account) public view returns(uint256) {
+        //Get
+        uint256 ownerToken = _getExtTokenId(account);
+        //Validate
+        require(ownerToken != 0, "ERC1155Tracker: requested account not found on source contract");
+        //Return
+        return ownerToken;
     }
-
-    function __ERC1155_init_unchained(string memory uri_) internal onlyInitializing {
-        _setURI(uri_);
-    }
-    */
 
     /// Get a Token ID Based on account address
-    function _getExtTokenId(address account) internal view returns(uint256) {
-        require(account != address(0), "ERC1155Tracker: address zero is not a valid account");
+    function _getExtTokenId(address account) internal view returns (uint256) {
+        // require(account != address(0), "ERC1155Tracker: address zero is not a valid account");       //Redundant 
         require(account != _targetContract, "ERC1155Tracker: source contract address is not a valid account");
-
         //Run function on destination contract
         // return IAvatar(_targetContract).tokenByAddress(account);
         uint256 ownerToken = IAvatar(_targetContract).tokenByAddress(account);
-        require(ownerToken != 0, "ERC1155Tracker: account not found on source contract");
+        //Validate
+        // require(ownerToken != 0, "ERC1155Tracker: account not found on source contract");
+        //Return
         return ownerToken;
+    }
+
+    /// Check if External Token Exists
+    // function _ExtTokenExists(uint256 extTokenId) internal view {
+    //     return (_getAccount(extTokenId) != address(0));
+    // }
+
+    function _getAccount(uint256 extTokenId) internal view returns (address) {
+        return IERC721(_targetContract).ownerOf(extTokenId);
     }
 
     /**
@@ -117,10 +123,18 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
      *
      * - `account` cannot be the zero address.
      */
-    function balanceOf(address account, uint256 id) public view virtual override returns (uint256) {
+    function balanceOf(address account, uint256 id) public view override returns (uint256) {
         require(account != address(0), "ERC1155: address zero is not a valid owner");
         // return _balances[id][account];
-        return _balances[id][_getExtTokenId(account)];
+        // return _balances[id][getExtTokenId(account)];
+        return balanceOfToken(getExtTokenId(account), id);
+    }
+
+    /**
+     * Check balance by External Token ID
+     */
+    function balanceOfToken(uint256 extTokenId, uint256 id) public view override returns (uint256) {
+        return _balances[id][extTokenId];
     }
 
     /**
@@ -223,8 +237,8 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
 
-        uint256 ownerFrom = _getExtTokenId(from);
-        uint256 ownerTo = _getExtTokenId(to);
+        uint256 ownerFrom = getExtTokenId(from);
+        uint256 ownerTo = getExtTokenId(to);
 
         // uint256 fromBalance = _balances[id][from];
         uint256 fromBalance = _balances[id][ownerFrom];
@@ -267,8 +281,8 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
 
-        uint256 ownerFrom = _getExtTokenId(from);
-        uint256 ownerTo = _getExtTokenId(to);
+        uint256 ownerFrom = getExtTokenId(from);
+        uint256 ownerTo = getExtTokenId(to);
 
         for (uint256 i = 0; i < ids.length; ++i) {
             uint256 id = ids[i];
@@ -317,6 +331,16 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
     }
     */
 
+    /// Mint for Address Owner
+    function _mint(address to, uint256 id, uint256 amount, bytes memory data) internal virtual {
+        _mintActual(to, getExtTokenId(to), id, amount, data);
+    }
+    
+    /// Mint for External Token Owner
+    function _mintForToken(uint256 toToken, uint256 id, uint256 amount, bytes memory data) internal virtual {
+        _mintActual(_getAccount(toToken), toToken, id, amount, data);
+    }
+
     /**
      * @dev Creates `amount` tokens of token type `id`, and assigns them to `to`.
      *
@@ -328,8 +352,9 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
      */
-    function _mint(
+    function _mintActual(
         address to,
+        uint256 toToken,
         uint256 id,
         uint256 amount,
         bytes memory data
@@ -343,7 +368,7 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
 
         // _balances[id][to] += amount;
-        _balances[id][_getExtTokenId(to)] += amount;
+        _balances[id][toToken] += amount;
 
         emit TransferSingle(operator, address(0), to, id, amount);
 
@@ -376,7 +401,7 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
 
         for (uint256 i = 0; i < ids.length; i++) {
             // _balances[ids[i]][to] += amounts[i];
-            _balances[ids[i]][_getExtTokenId(to)] += amounts[i];
+            _balances[ids[i]][getExtTokenId(to)] += amounts[i];
         }
 
         emit TransferBatch(operator, address(0), to, ids, amounts);
@@ -408,11 +433,11 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
         _beforeTokenTransfer(operator, from, address(0), ids, amounts, "");
 
         // uint256 fromBalance = _balances[id][from];
-        uint256 fromBalance = _balances[id][_getExtTokenId(from)];
+        uint256 fromBalance = _balances[id][getExtTokenId(from)];
         require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
         unchecked {
             // _balances[id][from] = fromBalance - amount;
-            _balances[id][_getExtTokenId(from)] = fromBalance - amount;
+            _balances[id][getExtTokenId(from)] = fromBalance - amount;
         }
 
         emit TransferSingle(operator, from, address(0), id, amount);
@@ -444,11 +469,11 @@ abstract contract ERC1155 is  Initializable, ContextUpgradeable, ERC165Upgradeab
             uint256 amount = amounts[i];
 
             // uint256 fromBalance = _balances[id][from];
-            uint256 fromBalance = _balances[id][_getExtTokenId(from)];
+            uint256 fromBalance = _balances[id][getExtTokenId(from)];
             require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
             unchecked {
                 // _balances[id][from] = fromBalance - amount;
-                _balances[id][_getExtTokenId(from)] = fromBalance - amount;
+                _balances[id][getExtTokenId(from)] = fromBalance - amount;
             }
         }
 
