@@ -12,7 +12,7 @@ import "../ERC1155Tracker.sol";
 contract ERC1155Mock is ERC1155 {
 
     constructor(address targetContract) {
-        _setTargetContract(targetContract);
+        __setTargetContract(targetContract);
     }
 
     function mint(
