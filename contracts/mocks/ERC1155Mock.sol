@@ -3,13 +3,13 @@
 pragma solidity ^0.8.4;
 
 // import "../ERC1155D.sol";
-import "../ERC1155Tracker.sol";
+import "../ERC1155TrackerUpgradable.sol";
 
 /**
  * @title ERC1155Mock
  * This mock just publicizes internal functions for testing purposes
  */
-contract ERC1155Mock is ERC1155 {
+contract ERC1155Mock is ERC1155TrackerUpgradable {
 
     constructor(address targetContract) {
         __setTargetContract(targetContract);

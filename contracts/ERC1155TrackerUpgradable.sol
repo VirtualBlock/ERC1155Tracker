@@ -1,12 +1,9 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts (last updated v4.6.0) (token/ERC1155/ERC1155.sol)
-
 pragma solidity ^0.8.0;
 
-import "hardhat/console.sol";
+// import "hardhat/console.sol";
 
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
-// import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
@@ -15,22 +12,26 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-
-import "./interfaces/IERC1155TrackerUpgradable.sol";
+import "./interfaces/IERC1155Tracker.sol";
 import "./interfaces/IAvatar.sol";
+import "./libraries/AddressArray.sol";
+import "./libraries/UintArray.sol";
 
 /**
  * @title ERC1155 Tracker Upgradable
  * @dev This contract is to be attached to an ERC721 contract and mapped to its tokens
  */
-abstract contract ERC1155 is 
+abstract contract ERC1155TrackerUpgradable is 
         Initializable, 
         ContextUpgradeable, 
         ERC165Upgradeable, 
-        IERC1155TrackerUpgradable {
-            
-    using AddressUpgradeable for address;
+        IERC1155Tracker {
 
+    using AddressUpgradeable for address;
+    using AddressArray for address[];
+    using UintArray for uint256[];
+    
+    // using AddressArray for unit256[];
     // Mapping from token ID to account balances
     // mapping(uint256 => mapping(address => uint256)) private _balances;
 
@@ -40,9 +41,12 @@ abstract contract ERC1155 is
     // Manage Balances by External Token ID
     mapping(uint256 => mapping(uint256 => uint256)) private _balances;
 
+    //Index Unique Members for each TokenId
+    // mapping(uint256 => address[]) internal _uniqueMembers;
+    mapping(uint256 => uint256[]) internal _uniqueMemberTokens;
+
     // Target Contract (External Source)
     address _targetContract;
-
 
     /// Get Target Contract
     function getTargetContract() public view virtual override returns (address) {
@@ -60,9 +64,11 @@ abstract contract ERC1155 is
 
     /// Get a Token ID Based on account address (Throws)
     function getExtTokenId(address account) public view returns(uint256) {
+        //Validate Input
+        require(account != _targetContract, "ERC1155Tracker: source contract address is not a valid account");
         //Get
         uint256 ownerToken = _getExtTokenId(account);
-        //Validate
+        //Validate Output
         require(ownerToken != 0, "ERC1155Tracker: requested account not found on source contract");
         //Return
         return ownerToken;
@@ -81,11 +87,17 @@ abstract contract ERC1155 is
         return ownerToken;
     }
 
-    /// Check if External Token Exists
-    // function _ExtTokenExists(uint256 extTokenId) internal view {
-    //     return (_getAccount(extTokenId) != address(0));
-    // }
+    /// Unique Members Count (w/Token)
+    function uniqueMembers(uint256 id) public view override returns (uint256[] memory) {
+        return _uniqueMemberTokens[id];
+    }
 
+    /// Unique Members Count (w/Token)
+    function uniqueMembersCount(uint256 id) public view override returns (uint256) {
+        return uniqueMembers(id).length;
+    }
+
+    /// Get Owner Account By Owner Token
     function _getAccount(uint256 extTokenId) internal view returns (address) {
         return IERC721(_targetContract).ownerOf(extTokenId);
     }
@@ -178,7 +190,7 @@ abstract contract ERC1155 is
 
     /**
      * @dev See {IERC1155-safeTransferFrom}.
-     */
+     * /
     function safeTransferFrom(
         address from,
         address to,
@@ -195,7 +207,7 @@ abstract contract ERC1155 is
 
     /**
      * @dev See {IERC1155-safeBatchTransferFrom}.
-     */
+     * /
     function safeBatchTransferFrom(
         address from,
         address to,
@@ -221,7 +233,7 @@ abstract contract ERC1155 is
      * - `from` must have a balance of tokens of type `id` of at least `amount`.
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
-     */
+     * /
     function _safeTransferFrom(
         address from,
         address to,
@@ -237,8 +249,8 @@ abstract contract ERC1155 is
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
 
-        uint256 ownerFrom = getExtTokenId(from);
-        uint256 ownerTo = getExtTokenId(to);
+        uint256 ownerFrom = _getExtTokenId(from);
+        uint256 ownerTo = _getExtTokenId(to);
 
         // uint256 fromBalance = _balances[id][from];
         uint256 fromBalance = _balances[id][ownerFrom];
@@ -251,6 +263,7 @@ abstract contract ERC1155 is
         _balances[id][ownerTo] += amount;
 
         emit TransferSingle(operator, from, to, id, amount);
+        emit TransferByToken(operator, ownerFrom, ownerTo, id, amount);
 
         _afterTokenTransfer(operator, from, to, ids, amounts, data);
 
@@ -266,7 +279,7 @@ abstract contract ERC1155 is
      *
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155BatchReceived} and return the
      * acceptance magic value.
-     */
+     * /
     function _safeBatchTransferFrom(
         address from,
         address to,
@@ -281,8 +294,8 @@ abstract contract ERC1155 is
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
 
-        uint256 ownerFrom = getExtTokenId(from);
-        uint256 ownerTo = getExtTokenId(to);
+        uint256 ownerFrom = _getExtTokenId(from);
+        uint256 ownerTo = _getExtTokenId(to);
 
         for (uint256 i = 0; i < ids.length; ++i) {
             uint256 id = ids[i];
@@ -300,6 +313,7 @@ abstract contract ERC1155 is
         }
 
         emit TransferBatch(operator, from, to, ids, amounts);
+        emit TransferBatchByToken(operator, ownerFrom, ownerTo, ids, amounts);
 
         _afterTokenTransfer(operator, from, to, ids, amounts, data);
 
@@ -366,13 +380,16 @@ abstract contract ERC1155 is
         uint256[] memory amounts = _asSingletonArray(amount);
 
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
+        _beforeTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
 
         // _balances[id][to] += amount;
         _balances[id][toToken] += amount;
-
+        
         emit TransferSingle(operator, address(0), to, id, amount);
+        emit TransferByToken(operator, 0, toToken, id, amount);
 
         _afterTokenTransfer(operator, address(0), to, ids, amounts, data);
+        _afterTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
 
         // _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
     }
@@ -396,19 +413,33 @@ abstract contract ERC1155 is
         require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
 
         address operator = _msgSender();
+        uint256 toToken = getExtTokenId(to);
 
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
+        _beforeTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
 
         for (uint256 i = 0; i < ids.length; i++) {
             // _balances[ids[i]][to] += amounts[i];
-            _balances[ids[i]][getExtTokenId(to)] += amounts[i];
+            _balances[ids[i]][toToken] += amounts[i];
         }
 
         emit TransferBatch(operator, address(0), to, ids, amounts);
+        emit TransferBatchByToken(operator, 0, toToken, ids, amounts);
 
         _afterTokenTransfer(operator, address(0), to, ids, amounts, data);
+        _afterTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
 
         // _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
+    }
+
+    /// Burn Token for Account
+    function _burn(address from, uint256 id, uint256 amount) internal virtual {
+        _burnActual(from, getExtTokenId(from), id, amount);
+    }
+
+    /// Burn Token by External Token Owner
+    function _burnForToken(uint256 fromToken, uint256 id, uint256 amount) internal virtual {
+        _burnActual(_getAccount(fromToken), fromToken, id, amount);
     }
 
     /**
@@ -419,8 +450,9 @@ abstract contract ERC1155 is
      * - `from` cannot be the zero address.
      * - `from` must have at least `amount` tokens of token type `id`.
      */
-    function _burn(
+    function _burnActual(
         address from,
+        uint256 fromToken,
         uint256 id,
         uint256 amount
     ) internal virtual {
@@ -431,18 +463,21 @@ abstract contract ERC1155 is
         uint256[] memory amounts = _asSingletonArray(amount);
 
         _beforeTokenTransfer(operator, from, address(0), ids, amounts, "");
+        _beforeTokenTransferTracker(operator, fromToken, 0, ids, amounts, "");
 
         // uint256 fromBalance = _balances[id][from];
-        uint256 fromBalance = _balances[id][getExtTokenId(from)];
+        uint256 fromBalance = _balances[id][fromToken];
         require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
         unchecked {
             // _balances[id][from] = fromBalance - amount;
-            _balances[id][getExtTokenId(from)] = fromBalance - amount;
+            _balances[id][fromToken] = fromBalance - amount;
         }
 
         emit TransferSingle(operator, from, address(0), id, amount);
+        emit TransferByToken(operator, fromToken, 0, id, amount);
 
         _afterTokenTransfer(operator, from, address(0), ids, amounts, "");
+        _afterTokenTransferTracker(operator, fromToken, 0, ids, amounts, "");
     }
 
     /**
@@ -461,25 +496,28 @@ abstract contract ERC1155 is
         require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
 
         address operator = _msgSender();
+        uint256 fromToken = getExtTokenId(from);
 
         _beforeTokenTransfer(operator, from, address(0), ids, amounts, "");
+        _beforeTokenTransferTracker(operator, fromToken, 0, ids, amounts, "");
 
         for (uint256 i = 0; i < ids.length; i++) {
             uint256 id = ids[i];
             uint256 amount = amounts[i];
-
             // uint256 fromBalance = _balances[id][from];
-            uint256 fromBalance = _balances[id][getExtTokenId(from)];
+            uint256 fromBalance = _balances[id][fromToken];
             require(fromBalance >= amount, "ERC1155: burn amount exceeds balance");
             unchecked {
                 // _balances[id][from] = fromBalance - amount;
-                _balances[id][getExtTokenId(from)] = fromBalance - amount;
+                _balances[id][fromToken] = fromBalance - amount;
             }
         }
 
         emit TransferBatch(operator, from, address(0), ids, amounts);
+        emit TransferBatchByToken(operator, fromToken, 0, ids, amounts);
 
         _afterTokenTransfer(operator, from, address(0), ids, amounts, "");
+        _afterTokenTransferTracker(operator, fromToken, 0, ids, amounts, "");
     }
 
     /**
@@ -495,6 +533,11 @@ abstract contract ERC1155 is
         require(owner != operator, "ERC1155: setting approval status for self");
         _operatorApprovals[owner][operator] = approved;
         emit ApprovalForAll(owner, operator, approved);
+    }
+
+    /// An 'onwer' Address (Not Address 0 and not Target Contract)
+    function _isOwnerAddress(address addr) internal view returns(bool){
+        return (addr != address(0) && addr != _targetContract);
     }
 
     /**
@@ -525,6 +568,27 @@ abstract contract ERC1155 is
         uint256[] memory amounts,
         bytes memory data
     ) internal virtual {}
+    
+    /// @dev Hook that is called before any token transfer
+    function _beforeTokenTransferTracker(
+        address operator,
+        uint256 fromToken,
+        uint256 toToken,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) internal virtual {
+        if(toToken != 0){
+            for (uint256 i = 0; i < ids.length; ++i) {
+                uint256 id = ids[i];
+                //If New Owner 
+                if(_balances[id][toToken] == 0){
+                    //Register New Owner
+                    _uniqueMemberTokens[id].push(toToken);
+                }
+            }
+        }
+    }
 
     /**
      * @dev Hook that is called after any token transfer. This includes minting
@@ -555,7 +619,28 @@ abstract contract ERC1155 is
         bytes memory data
     ) internal virtual {}
 
-    /* Unecessary, because token's aren't really controlled by that account anymore
+    /// @dev Hook that is called after any token transfer
+    function _afterTokenTransferTracker(
+        address operator,
+        uint256 fromToken,
+        uint256 toToken,
+        uint256[] memory ids,
+        uint256[] memory amounts,
+        bytes memory data
+    ) internal virtual {
+        if(fromToken != 0){
+            for (uint256 i = 0; i < ids.length; ++i) {
+                uint256 id = ids[i];
+                //If Owner Ran Out of Tokens
+                if(_balances[id][fromToken] == 0){
+                    //Remvoed Owner
+                    _uniqueMemberTokens[id].removeItem(fromToken);
+                }
+            }
+        }
+    }
+
+    /* Unecessary, because token's aren't really controlled by the account anymore
     function _doSafeTransferAcceptanceCheck(
         address operator,
         address from,

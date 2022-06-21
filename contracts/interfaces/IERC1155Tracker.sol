@@ -12,12 +12,30 @@ import "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeab
  *
  * _Available since v3.1._
  */
-interface IERC1155TrackerUpgradable is IERC165Upgradeable {
+interface IERC1155Tracker is IERC165Upgradeable {
 
     
     /// Get Target Contract
     function getTargetContract() external view returns (address);
 
+    /// Unique Members Addresses
+    function uniqueMembers(uint256 id) external view returns (uint256[] memory);
+    
+    /// Unique Members Count (w/Token)
+    function uniqueMembersCount(uint256 id) external view returns (uint256);
+    
+
+    /// Single Token Transfer
+    event TransferByToken(address indexed operator, uint256 indexed fromOwnerToken, uint256 indexed toOwnerToken, uint256 id, uint256 value);
+
+    /// Batch Token Transfer
+    event TransferBatchByToken(
+        address indexed operator,
+        uint256 indexed fromOwnerToken, 
+        uint256 indexed toOwnerToken,
+        uint256[] ids,
+        uint256[] values
+    );
 
     //-- Tranditional Functions
 
@@ -106,7 +124,7 @@ interface IERC1155TrackerUpgradable is IERC165Upgradeable {
      * - `from` must have a balance of tokens of type `id` of at least `amount`.
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
-     */
+     * /
     function safeTransferFrom(
         address from,
         address to,
@@ -125,7 +143,7 @@ interface IERC1155TrackerUpgradable is IERC165Upgradeable {
      * - `ids` and `amounts` must have the same length.
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155BatchReceived} and return the
      * acceptance magic value.
-     */
+     * /
     function safeBatchTransferFrom(
         address from,
         address to,
@@ -133,4 +151,5 @@ interface IERC1155TrackerUpgradable is IERC165Upgradeable {
         uint256[] calldata amounts,
         bytes calldata data
     ) external;
+    */
 }
