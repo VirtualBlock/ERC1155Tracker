@@ -26,7 +26,7 @@ import "./abstract/Opinions.sol";
  *  - [TODO] Orphan tokens can be claimed
  *  - [TODO] Contract is Updatable
   */
-contract AvatarNFT is 
+contract Soul is 
         IAvatar, 
         CommonYJ, 
         Opinions,

@@ -15,7 +15,7 @@ const { expect } = require("chai");
 const { shouldBehaveLikeERC1155 } = require("./ERC1155.behavior");
 const ERC1155Mock = artifacts.require("ERC1155Mock");
 const HubContract = artifacts.require("Hub");
-const AvatarContract = artifacts.require("AvatarNFT");
+const AvatarContract = artifacts.require("Soul");
 let test_uri = "ipfs://QmQxkoWcpFgMa7bCzxaANWtSt43J1iMgksjNnT4vM1Apd7"; //"TEST_URI";
 
 
@@ -34,7 +34,7 @@ contract("ERC1155", function (accounts) {
     //Mint Some NFTs
     // await this.avatar.connect(acc1).mint(test_uri);
 
-    // this.avatar2 = await ethers.getContractFactory("AvatarNFT").then(res => res.deploy());
+    // this.avatar2 = await ethers.getContractFactory("Soul").then(res => res.deploy());
     // this.avatar2 = tokenHolder.deploy(AvatarContract, this.hub.address, {from: accounts[1]});
     this.avatar2 = await AvatarContract.new(this.hub.address, {from: accounts[1]});
 
