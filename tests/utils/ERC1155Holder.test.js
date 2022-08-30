@@ -51,26 +51,4 @@ contract("ERC1155Holder", function (accounts) {
     }
   });
 
-  it("receives ERC1155 tokens from a multiple IDs", async function () {
-    for (let i = 0; i < multiTokenIds.length; i++) {
-      expect(
-        await this.multiToken.balanceOf(this.holder.address, multiTokenIds[i])
-      ).to.be.bignumber.equal(new BN(0));
-    }
-
-    await this.multiToken.safeBatchTransferFrom(
-      creator,
-      this.holder.address,
-      multiTokenIds,
-      multiTokenAmounts,
-      transferData,
-      { from: creator }
-    );
-
-    for (let i = 0; i < multiTokenIds.length; i++) {
-      expect(
-        await this.multiToken.balanceOf(this.holder.address, multiTokenIds[i])
-      ).to.be.bignumber.equal(multiTokenAmounts[i]);
-    }
-  });
 });

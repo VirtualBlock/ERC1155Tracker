@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: MIT
 
-// OpenZeppelin Contracts v4.4.1 (token/ERC1155/IERC1155.sol)
-
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts-upgradeable/utils/introspection/IERC165Upgradeable.sol";
 
 /**
+ * Based on OpenZeppelin Contracts v4.4.1 (token/ERC1155/IERC1155.sol)
  * @dev Required interface of an ERC1155 compliant contract, as defined in the
  * https://eips.ethereum.org/EIPS/eip-1155[EIP].
- *
- * _Available since v3.1._
+ * with Added tracker functionality
+ * 
  */
 interface IERC1155Tracker is IERC165Upgradeable {
 
@@ -120,11 +119,11 @@ interface IERC1155Tracker is IERC165Upgradeable {
      * Requirements:
      *
      * - `to` cannot be the zero address.
-     * - If the caller is not `from`, it must be have been approved to spend ``from``'s tokens via {setApprovalForAll}.
+     * - If the caller is not `from`, it must have been approved to spend ``from``'s tokens via {setApprovalForAll}.
      * - `from` must have a balance of tokens of type `id` of at least `amount`.
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
-     * /
+     */
     function safeTransferFrom(
         address from,
         address to,
@@ -143,7 +142,7 @@ interface IERC1155Tracker is IERC165Upgradeable {
      * - `ids` and `amounts` must have the same length.
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155BatchReceived} and return the
      * acceptance magic value.
-     * /
+     */
     function safeBatchTransferFrom(
         address from,
         address to,
@@ -151,5 +150,5 @@ interface IERC1155Tracker is IERC165Upgradeable {
         uint256[] calldata amounts,
         bytes calldata data
     ) external;
-    */
+
 }

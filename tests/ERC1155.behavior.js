@@ -14,6 +14,29 @@ const {
 
 const ERC1155ReceiverMock = artifacts.require("ERC1155ReceiverMock");
 
+
+function transferWasSuccessful({ operator, from, id, value }) {
+  it("debits transferred balance from sender", async function () {
+    const newBalance = await this.token.balanceOf(from, id);
+    expect(newBalance).to.be.a.bignumber.equal("0");
+  });
+
+  it("credits transferred balance to receiver", async function () {
+    const newBalance = await this.token.balanceOf(this.toWhom, id);
+    expect(newBalance).to.be.a.bignumber.equal(value);
+  });
+
+  it("emits a TransferSingle log", function () {
+    expectEvent.inLogs(this.transferLogs, "TransferSingle", {
+      operator,
+      from,
+      to: this.toWhom,
+      id,
+      value,
+    });
+  });
+}
+
 function shouldBehaveLikeERC1155([
   minter,
   firstTokenHolder,
@@ -33,7 +56,19 @@ function shouldBehaveLikeERC1155([
   const RECEIVER_BATCH_MAGIC_VALUE = "0xbc197c81";
 
   describe("like an ERC1155", function () {
+
+    before(async function () {
+      //Mint an SBT for each account (required for participation)
+      await this.sbt.mintFor(minter, '');
+      await this.sbt.mintFor(firstTokenHolder, '');
+      await this.sbt.mintFor(secondTokenHolder, '');
+      await this.sbt.mintFor(multiTokenHolder, '');
+      await this.sbt.mintFor(recipient, '');
+      await this.sbt.mintFor(proxy, '');
+    });
+
     describe("balanceOf", function () {
+
       it("reverts when queried about the zero address", async function () {
         await expectRevert(
           this.token.balanceOf(ZERO_ADDRESS, firstTokenId),
@@ -41,16 +76,14 @@ function shouldBehaveLikeERC1155([
         );
       });
 
-      context("when accounts don't own tokens", function () {
+      context("when accounts doesn't own tokens", function () {
         it("returns zero for given addresses", async function () {
           expect(
             await this.token.balanceOf(firstTokenHolder, firstTokenId)
           ).to.be.bignumber.equal("0");
-
           expect(
             await this.token.balanceOf(secondTokenHolder, secondTokenId)
           ).to.be.bignumber.equal("0");
-
           expect(
             await this.token.balanceOf(firstTokenHolder, unknownTokenId)
           ).to.be.bignumber.equal("0");
@@ -133,7 +166,7 @@ function shouldBehaveLikeERC1155([
         it("returns zeros for each account", async function () {
           const result = await this.token.balanceOfBatch(
             [firstTokenHolder, secondTokenHolder, firstTokenHolder],
-            [firstTokenId, secondTokenId, unknownTokenId]
+            [secondTokenId, firstTokenId, unknownTokenId]
           );
           expect(result).to.be.an("array");
           expect(result[0]).to.be.a.bignumber.equal("0");
@@ -163,7 +196,7 @@ function shouldBehaveLikeERC1155([
             }
           );
         });
-
+        
         it("returns amounts owned by each account in order passed", async function () {
           const result = await this.token.balanceOfBatch(
             [secondTokenHolder, firstTokenHolder, firstTokenHolder],
@@ -231,6 +264,7 @@ function shouldBehaveLikeERC1155([
     });
 
     describe("safeTransferFrom", function () {
+      
       beforeEach(async function () {
         await this.token.mint(
           multiTokenHolder,
@@ -280,29 +314,8 @@ function shouldBehaveLikeERC1155([
         );
       });
 
-      function transferWasSuccessful({ operator, from, id, value }) {
-        it("debits transferred balance from sender", async function () {
-          const newBalance = await this.token.balanceOf(from, id);
-          expect(newBalance).to.be.a.bignumber.equal("0");
-        });
-
-        it("credits transferred balance to receiver", async function () {
-          const newBalance = await this.token.balanceOf(this.toWhom, id);
-          expect(newBalance).to.be.a.bignumber.equal(value);
-        });
-
-        it("emits a TransferSingle log", function () {
-          expectEvent.inLogs(this.transferLogs, "TransferSingle", {
-            operator,
-            from,
-            to: this.toWhom,
-            id,
-            value,
-          });
-        });
-      }
-
       context("when called by the multiTokenHolder", async function () {
+
         beforeEach(async function () {
           this.toWhom = recipient;
           ({ logs: this.transferLogs } = await this.token.safeTransferFrom(
@@ -360,12 +373,11 @@ function shouldBehaveLikeERC1155([
                       from: proxy,
                     }
                   ),
-                  "ERC1155: caller is not owner nor approved"
+                  "ERC1155: caller is not token owner or approved"
                 );
               });
             }
           );
-
           context("when operator is approved by multiTokenHolder", function () {
             beforeEach(async function () {
               this.toWhom = recipient;
@@ -401,7 +413,7 @@ function shouldBehaveLikeERC1155([
           });
         }
       );
-
+      
       context("when sending to a valid receiver", function () {
         beforeEach(async function () {
           this.receiver = await ERC1155ReceiverMock.new(
@@ -410,6 +422,8 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
+          //Mint an SBT
+          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         context("without data", function () {
@@ -447,6 +461,7 @@ function shouldBehaveLikeERC1155([
               }
             );
           });
+          
         });
 
         context("with data", function () {
@@ -488,6 +503,7 @@ function shouldBehaveLikeERC1155([
         });
       });
 
+      /* Disabled -- receiver doesn't have the power to refuse */
       context("to a receiver contract returning unexpected value", function () {
         beforeEach(async function () {
           this.receiver = await ERC1155ReceiverMock.new(
@@ -496,6 +512,8 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
+          //Mint an SBT
+          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -523,6 +541,8 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
+          //Mint an SBT
+          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -715,7 +735,7 @@ function shouldBehaveLikeERC1155([
                     "0x",
                     { from: proxy }
                   ),
-                  "ERC1155: transfer caller is not owner nor approved"
+                  "ERC1155: caller is not token owner or approved"
                 );
               });
             }
@@ -763,6 +783,8 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
+          //Mint an SBT
+          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         context("without data", function () {
@@ -849,6 +871,8 @@ function shouldBehaveLikeERC1155([
             RECEIVER_SINGLE_MAGIC_VALUE,
             false
           );
+          //Mint an SBT
+          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -874,6 +898,8 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             true
           );
+          //Mint an SBT
+          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -901,6 +927,8 @@ function shouldBehaveLikeERC1155([
               RECEIVER_BATCH_MAGIC_VALUE,
               false
             );
+            //Mint an SBT
+            await this.sbt.mintFor(this.receiver.address, '');
 
             this.toWhom = this.receiver.address;
             this.transferReceipt = await this.token.safeBatchTransferFrom(

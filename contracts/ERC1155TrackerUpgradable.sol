@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// import "hardhat/console.sol";
-
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
-// import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-// import "@openzeppelin/contracts-upgradeable/token/ERC1155/extensions/IERC1155MetadataURIUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./interfaces/IERC1155Tracker.sol";
-import "./interfaces/IAvatar.sol";
-import "./libraries/AddressArray.sol";
+import "./interfaces/ISoul.sol";
 import "./libraries/UintArray.sol";
 
 /**
  * @title ERC1155 Tracker Upgradable
  * @dev This contract is to be attached to an ERC721 (SoulBoundToken) contract and mapped to its tokens
+ * @dev Used for composibility and seamless connection to soulbound identitiy tokens
+ * @dev Balances are registered by owned token
+ * @dev Removed safeTranfer functions since this is not the responsibility of the target contract
  */
 abstract contract ERC1155TrackerUpgradable is 
         Initializable, 
@@ -28,11 +27,13 @@ abstract contract ERC1155TrackerUpgradable is
         IERC1155Tracker {
 
     using AddressUpgradeable for address;
-    using AddressArray for address[];
     using UintArray for uint256[];
     
     // Mapping from account to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
+
+    // Used as the URI for all token types by relying on ID substitution, e.g. https://token-cdn-domain/{id}.json
+    // string private _uri;
 
     // Manage Balances by External Token ID
     mapping(uint256 => mapping(uint256 => uint256)) private _balances;
@@ -41,7 +42,7 @@ abstract contract ERC1155TrackerUpgradable is
     mapping(uint256 => uint256[]) internal _uniqueMemberTokens;
 
     // Target Contract (External Source)
-    address _targetContract;
+    address internal _targetContract;
 
     /// Get Target Contract
     function getTargetContract() public view virtual override returns (address) {
@@ -51,10 +52,10 @@ abstract contract ERC1155TrackerUpgradable is
     /// Set Target Contract
     function __setTargetContract(address targetContract) internal virtual {
         //Validate IERC721
-        // require(IERC165(targetContract).supportsInterface(type(IERC721).interfaceId), "Target Expected to Support IERC721");
-        require(IERC165(targetContract).supportsInterface(type(IAvatar).interfaceId), "Target contract expected to support IAvatar");
+        require(IERC165(targetContract).supportsInterface(type(ISoul).interfaceId) 
+            || IERC165(targetContract).supportsInterface(type(IERC721).interfaceId), 
+            "Target Expected to Support ISoul or IERC721");
         _targetContract = targetContract;
-        // _targetContract = IERC721(targetContract);
     }
 
     /// Get a Token ID Based on account address (Throws)
@@ -74,12 +75,12 @@ abstract contract ERC1155TrackerUpgradable is
         // require(account != address(0), "ERC1155Tracker: address zero is not a valid account");       //Redundant 
         require(account != _targetContract, "ERC1155Tracker: source contract address is not a valid account");
         //Run function on destination contract
-        // return IAvatar(_targetContract).tokenByAddress(account);
-        uint256 ownerToken = IAvatar(_targetContract).tokenByAddress(account);
-        //Validate
-        // require(ownerToken != 0, "ERC1155Tracker: account not found on source contract");
-        //Return
-        return ownerToken;
+        return ISoul(_targetContract).tokenByAddress(account);
+    }
+
+    /// Get Owner Account By Owner Token
+    function _getAccount(uint256 extTokenId) internal view returns (address) {
+        return IERC721(_targetContract).ownerOf(extTokenId);
     }
 
     /// Unique Members Count (w/Token)
@@ -92,18 +93,12 @@ abstract contract ERC1155TrackerUpgradable is
         return uniqueMembers(id).length;
     }
 
-    /// Get Owner Account By Owner Token
-    function _getAccount(uint256 extTokenId) internal view returns (address) {
-        return IERC721(_targetContract).ownerOf(extTokenId);
-    }
-
     /**
      * @dev See {IERC165-supportsInterface}.
      */
     function supportsInterface(bytes4 interfaceId) public view virtual override(ERC165Upgradeable, IERC165Upgradeable) returns (bool) {
         return
-            // interfaceId == type(IERC1155Upgradeable).interfaceId ||
-            // interfaceId == type(IERC1155MetadataURIUpgradeable).interfaceId ||
+            interfaceId == type(IERC1155Upgradeable).interfaceId ||
             super.supportsInterface(interfaceId);
     }
 
@@ -117,11 +112,9 @@ abstract contract ERC1155TrackerUpgradable is
      * Clients calling this function must replace the `\{id\}` substring with the
      * actual token type ID.
      */
-     /* REMOVED - Unecessary
-    function uri(uint256) public view virtual override returns (string memory) {
-        return _uri;
-    }
-    */
+    // function uri(uint256) public view virtual override returns (string memory) {
+    //     return _uri;
+    // }
 
     /**
      * @dev See {IERC1155-balanceOf}.
@@ -131,17 +124,17 @@ abstract contract ERC1155TrackerUpgradable is
      * - `account` cannot be the zero address.
      */
     function balanceOf(address account, uint256 id) public view override returns (uint256) {
-        require(account != address(0), "ERC1155: address zero is not a valid owner");
+        require(account != address(0), "ERC1155: balance query for the zero address");
         // return _balances[id][account];
-        // return _balances[id][getExtTokenId(account)];
-        return balanceOfToken(getExtTokenId(account), id);
+        // return balanceOfToken(getExtTokenId(account), id); //Failes if Token doesn't exist
+        return balanceOfToken(_getExtTokenId(account), id); //Won't Fail if Token doesn't exist
     }
 
     /**
      * Check balance by External Token ID
      */
-    function balanceOfToken(uint256 extTokenId, uint256 id) public view override returns (uint256) {
-        return _balances[id][extTokenId];
+    function balanceOfToken(uint256 sbt, uint256 id) public view override returns (uint256) {
+        return _balances[id][sbt];
     }
 
     /**
@@ -185,7 +178,7 @@ abstract contract ERC1155TrackerUpgradable is
 
     /**
      * @dev See {IERC1155-safeTransferFrom}.
-     * /
+     */
     function safeTransferFrom(
         address from,
         address to,
@@ -195,14 +188,14 @@ abstract contract ERC1155TrackerUpgradable is
     ) public virtual override {
         require(
             from == _msgSender() || isApprovedForAll(from, _msgSender()),
-            "ERC1155: caller is not owner nor approved"
+            "ERC1155: caller is not token owner or approved"
         );
         _safeTransferFrom(from, to, id, amount, data);
     }
 
     /**
      * @dev See {IERC1155-safeBatchTransferFrom}.
-     * /
+     */
     function safeBatchTransferFrom(
         address from,
         address to,
@@ -212,7 +205,7 @@ abstract contract ERC1155TrackerUpgradable is
     ) public virtual override {
         require(
             from == _msgSender() || isApprovedForAll(from, _msgSender()),
-            "ERC1155: transfer caller is not owner nor approved"
+            "ERC1155: caller is not token owner or approved"
         );
         _safeBatchTransferFrom(from, to, ids, amounts, data);
     }
@@ -228,7 +221,7 @@ abstract contract ERC1155TrackerUpgradable is
      * - `from` must have a balance of tokens of type `id` of at least `amount`.
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155Received} and return the
      * acceptance magic value.
-     * /
+     */
     function _safeTransferFrom(
         address from,
         address to,
@@ -242,27 +235,32 @@ abstract contract ERC1155TrackerUpgradable is
         uint256[] memory ids = _asSingletonArray(id);
         uint256[] memory amounts = _asSingletonArray(amount);
 
-        _beforeTokenTransfer(operator, from, to, ids, amounts, data);
+        //Fetch Tokens for Accounts
+        uint256 fromToken = getExtTokenId(from);
+        uint256 toToken = getExtTokenId(to);
 
-        uint256 ownerFrom = _getExtTokenId(from);
-        uint256 ownerTo = _getExtTokenId(to);
+        _beforeTokenTransfer(operator, from, to, ids, amounts, data);
+        _beforeTokenTransferTracker(operator, fromToken, toToken, ids, amounts, data);
 
         // uint256 fromBalance = _balances[id][from];
-        uint256 fromBalance = _balances[id][ownerFrom];
+        uint256 fromBalance = _balances[id][fromToken];
+
         require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
         unchecked {
             // _balances[id][from] = fromBalance - amount;
-            _balances[id][ownerFrom] = fromBalance - amount;
+            _balances[id][fromToken] = fromBalance - amount;
+
         }
         // _balances[id][to] += amount;
-        _balances[id][ownerTo] += amount;
+        _balances[id][toToken] += amount;
 
         emit TransferSingle(operator, from, to, id, amount);
-        emit TransferByToken(operator, ownerFrom, ownerTo, id, amount);
+        emit TransferByToken(operator, fromToken, toToken, id, amount);
 
         _afterTokenTransfer(operator, from, to, ids, amounts, data);
+        _afterTokenTransferTracker(operator, fromToken, toToken, ids, amounts, data);
 
-        // _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);
+        _doSafeTransferAcceptanceCheck(operator, from, to, id, amount, data);
     }
 
     /**
@@ -274,7 +272,7 @@ abstract contract ERC1155TrackerUpgradable is
      *
      * - If `to` refers to a smart contract, it must implement {IERC1155Receiver-onERC1155BatchReceived} and return the
      * acceptance magic value.
-     * /
+     */
     function _safeBatchTransferFrom(
         address from,
         address to,
@@ -287,32 +285,34 @@ abstract contract ERC1155TrackerUpgradable is
 
         address operator = _msgSender();
 
-        _beforeTokenTransfer(operator, from, to, ids, amounts, data);
+        //Fetch Tokens for Accounts
+        uint256 fromToken = getExtTokenId(from);
+        uint256 toToken = getExtTokenId(to);
 
-        uint256 ownerFrom = _getExtTokenId(from);
-        uint256 ownerTo = _getExtTokenId(to);
+        _beforeTokenTransfer(operator, from, to, ids, amounts, data);
+        _beforeTokenTransferTracker(operator, fromToken, toToken, ids, amounts, data);
 
         for (uint256 i = 0; i < ids.length; ++i) {
             uint256 id = ids[i];
             uint256 amount = amounts[i];
 
             // uint256 fromBalance = _balances[id][from];
-            uint256 fromBalance = _balances[id][ownerFrom];
+            uint256 fromBalance = _balances[id][fromToken];
             require(fromBalance >= amount, "ERC1155: insufficient balance for transfer");
             unchecked {
                 // _balances[id][from] = fromBalance - amount;
-                _balances[id][ownerFrom] = fromBalance - amount;
+                _balances[id][fromToken] = fromBalance - amount;
             }
             // _balances[id][to] += amount;
-            _balances[id][ownerTo] += amount;
+            _balances[id][toToken] += amount;
         }
 
         emit TransferBatch(operator, from, to, ids, amounts);
-        emit TransferBatchByToken(operator, ownerFrom, ownerTo, ids, amounts);
 
         _afterTokenTransfer(operator, from, to, ids, amounts, data);
-
-        // _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
+        _afterTokenTransferTracker(operator, fromToken, toToken, ids, amounts, data);
+        
+        _doSafeBatchTransferAcceptanceCheck(operator, from, to, ids, amounts, data);
     }
 
     /**
@@ -334,14 +334,13 @@ abstract contract ERC1155TrackerUpgradable is
      * Because these URIs cannot be meaningfully represented by the {URI} event,
      * this function emits no events.
      */
-     /* REMOVED - Unecessary
-    function _setURI(string memory newuri) internal virtual {
-        _uri = newuri;
-    }
-    */
+    // function _setURI(string memory newuri) internal virtual {
+    //     _uri = newuri;
+    // }
 
     /// Mint for Address Owner
     function _mint(address to, uint256 id, uint256 amount, bytes memory data) internal virtual {
+        require(to != address(0), "ERC1155: mint to the zero address");
         _mintActual(to, getExtTokenId(to), id, amount, data);
     }
     
@@ -368,8 +367,6 @@ abstract contract ERC1155TrackerUpgradable is
         uint256 amount,
         bytes memory data
     ) internal virtual {
-        require(to != address(0), "ERC1155: mint to the zero address");
-
         address operator = _msgSender();
         uint256[] memory ids = _asSingletonArray(id);
         uint256[] memory amounts = _asSingletonArray(amount);
@@ -386,7 +383,7 @@ abstract contract ERC1155TrackerUpgradable is
         _afterTokenTransfer(operator, address(0), to, ids, amounts, data);
         _afterTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
 
-        // _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
+        _doSafeTransferAcceptanceCheck(operator, address(0), to, id, amount, data);
     }
 
     /**
@@ -408,27 +405,28 @@ abstract contract ERC1155TrackerUpgradable is
         require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
 
         address operator = _msgSender();
-        uint256 toToken = getExtTokenId(to);
+        uint256 sbtTo = getExtTokenId(to);
 
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
-        _beforeTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
+        _beforeTokenTransferTracker(operator, 0, sbtTo, ids, amounts, data);
 
         for (uint256 i = 0; i < ids.length; i++) {
             // _balances[ids[i]][to] += amounts[i];
-            _balances[ids[i]][toToken] += amounts[i];
+            _balances[ids[i]][sbtTo] += amounts[i];
         }
 
         emit TransferBatch(operator, address(0), to, ids, amounts);
-        emit TransferBatchByToken(operator, 0, toToken, ids, amounts);
+        emit TransferBatchByToken(operator, 0, sbtTo, ids, amounts);
 
         _afterTokenTransfer(operator, address(0), to, ids, amounts, data);
-        _afterTokenTransferTracker(operator, 0, toToken, ids, amounts, data);
+        _afterTokenTransferTracker(operator, 0, sbtTo, ids, amounts, data);
 
-        // _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
+        _doSafeBatchTransferAcceptanceCheck(operator, address(0), to, ids, amounts, data);
     }
 
     /// Burn Token for Account
     function _burn(address from, uint256 id, uint256 amount) internal virtual {
+        require(from != address(0), "ERC1155: burn from the zero address");
         _burnActual(from, getExtTokenId(from), id, amount);
     }
 
@@ -451,8 +449,6 @@ abstract contract ERC1155TrackerUpgradable is
         uint256 id,
         uint256 amount
     ) internal virtual {
-        require(from != address(0), "ERC1155: burn from the zero address");
-
         address operator = _msgSender();
         uint256[] memory ids = _asSingletonArray(id);
         uint256[] memory amounts = _asSingletonArray(amount);
@@ -530,11 +526,6 @@ abstract contract ERC1155TrackerUpgradable is
         emit ApprovalForAll(owner, operator, approved);
     }
 
-    /// An 'onwer' Address (Not Address 0 and not Target Contract)
-    function _isOwnerAddress(address addr) internal view returns(bool){
-        return (addr != address(0) && addr != _targetContract);
-    }
-
     /**
      * @dev Hook that is called before any token transfer. This includes minting
      * and burning, as well as batched variants.
@@ -566,18 +557,18 @@ abstract contract ERC1155TrackerUpgradable is
     
     /// @dev Hook that is called before any token transfer
     function _beforeTokenTransferTracker(
-        address operator,
-        uint256 fromToken,
+        address,// operator,
+        uint256,// fromToken,
         uint256 toToken,
         uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
+        uint256[] memory,// amounts,
+        bytes memory// data
     ) internal virtual {
-        if(toToken != 0){
+        if(toToken != 0) {
             for (uint256 i = 0; i < ids.length; ++i) {
                 uint256 id = ids[i];
                 //If New Owner 
-                if(_balances[id][toToken] == 0){
+                if(_balances[id][toToken] == 0) {
                     //Register New Owner
                     _uniqueMemberTokens[id].push(toToken);
                 }
@@ -616,18 +607,18 @@ abstract contract ERC1155TrackerUpgradable is
 
     /// @dev Hook that is called after any token transfer
     function _afterTokenTransferTracker(
-        address operator,
+        address,// operator,
         uint256 fromToken,
-        uint256 toToken,
+        uint256,// toToken,
         uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
+        uint256[] memory,// amounts,
+        bytes memory// data
     ) internal virtual {
-        if(fromToken != 0){
+        if(fromToken != 0) {
             for (uint256 i = 0; i < ids.length; ++i) {
                 uint256 id = ids[i];
                 //If Owner Ran Out of Tokens
-                if(_balances[id][fromToken] == 0){
+                if(_balances[id][fromToken] == 0) {
                     //Remvoed Owner
                     _uniqueMemberTokens[id].removeItem(fromToken);
                 }
@@ -635,7 +626,8 @@ abstract contract ERC1155TrackerUpgradable is
         }
     }
 
-    /* Unecessary, because token's aren't really controlled by the account anymore
+
+    /* Unecessary, because token's aren't really controlled by the account anymore */
     function _doSafeTransferAcceptanceCheck(
         address operator,
         address from,
@@ -679,7 +671,7 @@ abstract contract ERC1155TrackerUpgradable is
             }
         }
     }
-    */
+    
 
     function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {
         uint256[] memory array = new uint256[](1);

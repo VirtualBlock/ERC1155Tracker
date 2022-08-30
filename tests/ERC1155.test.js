@@ -5,40 +5,32 @@ const {
   expectRevert,
 } = require("@openzeppelin/test-helpers");
 
+// const  { ethers } = require("ethers");
 
 const { ZERO_ADDRESS } = constants;
 
 const { expect } = require("chai");
 
-// const  { ethers } = require("ethers");
-
 const { shouldBehaveLikeERC1155 } = require("./ERC1155.behavior");
 const ERC1155Mock = artifacts.require("ERC1155Mock");
-const HubContract = artifacts.require("Hub");
 const SBTContract = artifacts.require("Soul");
-let test_uri = "ipfs://QmQxkoWcpFgMa7bCzxaANWtSt43J1iMgksjNnT4vM1Apd7"; //"TEST_URI";
 
 
 contract("ERC1155", function (accounts) {
-  const [operator, tokenHolder, tokenBatchHolder, acc1, acc2, acc3, ...otherAccounts] = accounts;
-
   const initialURI = "https://token-cdn-domain/{id}.json";
+  const [operator, tokenHolder, tokenBatchHolder, tokenBatchHolder2, acc1, acc2, acc3, ...otherAccounts] = accounts;
+
   before(async function () {
-    
-    this.hub = await HubContract.new();
-    this.sbt = await SBTContract.new(this.hub.address);
-    console.log('Soul Contract Deployed', this.sbt.address);
+    this.sbt = await SBTContract.new();
+    //Mint an SBT for each account (required for participation)
+    await this.sbt.mintFor(operator, '');
+    await this.sbt.mintFor(tokenHolder, '');
+    await this.sbt.mintFor(tokenBatchHolder, '');
+    await this.sbt.mintFor(tokenBatchHolder2, '');
+  });
+
+  beforeEach(async function () {
     this.token = await ERC1155Mock.new(this.sbt.address);
-    console.log('ERC1155Tracker Contract Deployed', this.token.address);
-    
-    //Mint Some NFTs
-    // await this.sbt.connect(acc1).mint(test_uri);
-
-    // this.sbt2 = await ethers.getContractFactory("Soul").then(res => res.deploy());
-    // this.sbt2 = tokenHolder.deploy(SBTContract, this.hub.address, {from: accounts[1]});
-    this.sbt2 = await SBTContract.new(this.hub.address, {from: accounts[1]});
-
-
   });
 
   shouldBehaveLikeERC1155(otherAccounts);
@@ -91,33 +83,36 @@ contract("ERC1155", function (accounts) {
     });
 
     describe("_mintBatch", function () {
-      it("reverts with a zero destination address", async function () {
-        await expectRevert(
-          this.token.mintBatch(ZERO_ADDRESS, tokenBatchIds, mintAmounts, data),
-          "ERC1155: mint to the zero address"
-        );
-      });
 
-      it("reverts if length of inputs do not match", async function () {
-        await expectRevert(
-          this.token.mintBatch(
-            tokenBatchHolder,
-            tokenBatchIds,
-            mintAmounts.slice(1),
-            data
-          ),
-          "ERC1155: ids and amounts length mismatch"
-        );
+      context("with batch of one", function () {
+        it("reverts with a zero destination address", async function () {
+          await expectRevert(
+            this.token.mintBatch(ZERO_ADDRESS, tokenBatchIds, mintAmounts, data),
+            "ERC1155: mint to the zero address"
+          );
+        });
 
-        await expectRevert(
-          this.token.mintBatch(
-            tokenBatchHolder,
-            tokenBatchIds.slice(1),
-            mintAmounts,
-            data
-          ),
-          "ERC1155: ids and amounts length mismatch"
-        );
+        it("reverts if length of inputs do not match", async function () {
+          await expectRevert(
+            this.token.mintBatch(
+              tokenBatchHolder,
+              tokenBatchIds,
+              mintAmounts.slice(1),
+              data
+            ),
+            "ERC1155: ids and amounts length mismatch"
+          );
+
+          await expectRevert(
+            this.token.mintBatch(
+              tokenBatchHolder,
+              tokenBatchIds.slice(1),
+              mintAmounts,
+              data
+            ),
+            "ERC1155: ids and amounts length mismatch"
+          );
+        });
       });
 
       context("with minted batch of tokens", function () {
@@ -163,6 +158,10 @@ contract("ERC1155", function (accounts) {
       });
 
       it("reverts when burning a non-existent token id", async function () {
+        expect(
+          await this.token.balanceOf(tokenHolder, tokenId)
+        ).to.be.bignumber.equal(BN(0)); 
+        
         await expectRevert(
           this.token.burn(tokenHolder, tokenId, mintAmount),
           "ERC1155: burn amount exceeds balance"
