@@ -9,7 +9,7 @@ It's primary use is to attach assets to a persona, SBT, or a legal entity, but i
 
 # Usage
 
-The ERC1155Tracker co-exists with another ERC721 contract and tracks its owners. 
+The ERC1155Tracker must co-exists with another ERC721 contract and tracks its owners. 
 
 * New tokens are assigned to existing ERC721 tokens and track their owner
 
