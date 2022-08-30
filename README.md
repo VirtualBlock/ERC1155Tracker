@@ -1,6 +1,6 @@
 # ERC1155Tracker
 
-A composible ERC1155 compatible NFT contract in which ownership is mapped to tokens instead of contracts.
+ERC1155Tracker is an ERC-1155 compatible NFT contract in which ownership is mapped to tokens instead of wallet addresses.
 
 This contract primitive alows you to attach tokens to other tokens. In this case we attach ERC1155 Tokens to ERC721 Tokens.
 
