@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.4;
 
-import "../ERC1155TrackerUpgradable.sol";
+import "../abstract/ERC1155TrackerUpgradable.sol";
 
 /**
  * @title ERC1155Mock
- * This mock just publicizes internal functions for testing purposes
+ * This is mock contract that implements ERC1155Tracker 
  */
 contract ERC1155Mock is ERC1155TrackerUpgradable {
 

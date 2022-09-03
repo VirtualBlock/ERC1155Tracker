@@ -9,9 +9,9 @@ import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import "./interfaces/IERC1155Tracker.sol";
-import "./interfaces/ISoul.sol";
-import "./libraries/UintArray.sol";
+import "../interfaces/IERC1155Tracker.sol";
+import "../interfaces/ISoul.sol";
+import "../libraries/UintArray.sol";
 
 /**
  * @title ERC1155 Tracker Upgradable
@@ -53,8 +53,8 @@ abstract contract ERC1155TrackerUpgradable is
     function __setTargetContract(address targetContract) internal virtual {
         //Validate IERC721
         require(IERC165(targetContract).supportsInterface(type(ISoul).interfaceId) 
-            || IERC165(targetContract).supportsInterface(type(IERC721).interfaceId), 
-            "Target Expected to Support ISoul or IERC721");
+            // || IERC165(targetContract).supportsInterface(type(IERC721).interfaceId)  //That actually won't work. Needs the tokenByAddress() function
+            , "Target Expected to Support ISoul");
         _targetContract = targetContract;
     }
 
@@ -626,7 +626,6 @@ abstract contract ERC1155TrackerUpgradable is
         }
     }
 
-
     /* Unecessary, because token's aren't really controlled by the account anymore */
     function _doSafeTransferAcceptanceCheck(
         address operator,
@@ -672,7 +671,6 @@ abstract contract ERC1155TrackerUpgradable is
         }
     }
     
-
     function _asSingletonArray(uint256 element) private pure returns (uint256[] memory) {
         uint256[] memory array = new uint256[](1);
         array[0] = element;
