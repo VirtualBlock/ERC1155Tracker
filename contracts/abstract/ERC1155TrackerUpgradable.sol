@@ -4,13 +4,13 @@ pragma solidity ^0.8.0;
 // import "@openzeppelin/contracts-upgradeable/token/ERC1155/ERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155ReceiverUpgradeable.sol";
-import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+// import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import "@openzeppelin/contracts-upgradeable/utils/AddressUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/ContextUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IERC1155Tracker.sol";
-import "../interfaces/ISoul.sol";
+// import "../interfaces/ISoul.sol";
 import "../libraries/UintArray.sol";
 import "../abstract/Tracker.sol";
 
@@ -604,7 +604,6 @@ abstract contract ERC1155TrackerUpgradable is
         }
     }
 
-    /* Unecessary, because token's aren't really controlled by the account anymore */
     function _doSafeTransferAcceptanceCheck(
         address operator,
         address from,

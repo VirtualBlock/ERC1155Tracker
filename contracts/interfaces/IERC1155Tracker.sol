@@ -5,6 +5,7 @@ pragma solidity 0.8.4;
 import "@openzeppelin/contracts-upgradeable/token/ERC1155/IERC1155Upgradeable.sol";
 
 /**
+ * @title ERC1155_Tracker Interface
  * Based on OpenZeppelin Contracts v4.4.1 (token/ERC1155/IERC1155.sol)
  * @dev Required interface of an ERC1155 compliant contract, as defined in the
  * https://eips.ethereum.org/EIPS/eip-1155[EIP].
