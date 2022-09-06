@@ -11,7 +11,7 @@ import "../abstract/ERC1155TrackerUpgradable.sol";
 contract ERC1155Mock is ERC1155TrackerUpgradable {
 
     constructor(address targetContract) {
-        __setTargetContract(targetContract);
+        _setTargetContract(targetContract);
     }
 
     function mint(

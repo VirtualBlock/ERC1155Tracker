@@ -12,7 +12,7 @@ import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IERC1155Tracker.sol";
 import "../interfaces/ISoul.sol";
 import "../libraries/UintArray.sol";
-import "../abstract/TrackerUpgradable.sol";
+import "../abstract/Tracker.sol";
 
 
 /**
@@ -26,7 +26,7 @@ abstract contract ERC1155TrackerUpgradable is
         Initializable, 
         ContextUpgradeable, 
         ERC165Upgradeable, 
-        TrackerUpgradable,
+        Tracker,
         IERC1155Tracker {
 
     using AddressUpgradeable for address;

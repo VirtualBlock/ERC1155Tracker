@@ -11,7 +11,7 @@ import "@openzeppelin/contracts-upgradeable/utils/StringsUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/utils/introspection/ERC165Upgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/IERC721Tracker.sol";
-import "../abstract/TrackerUpgradable.sol";
+import "../abstract/Tracker.sol";
 
 /**
  * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] Non-Fungible Token Standard, including
@@ -22,7 +22,7 @@ abstract contract ERC721Upgradeable is
         Initializable, 
         ContextUpgradeable, 
         ERC165Upgradeable,
-        TrackerUpgradable, 
+        Tracker, 
         // IERC721Upgradeable,
         IERC721Tracker
         // IERC721MetadataUpgradeable

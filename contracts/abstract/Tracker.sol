@@ -1,11 +1,8 @@
 //SPDX-License-Identifier: MIT
 pragma solidity 0.8.4;
 
-// import "hardhat/console.sol";
-
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
-import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "../interfaces/ISoul.sol";
 import "../interfaces/IERC1155Tracker.sol";
 
@@ -13,7 +10,7 @@ import "../interfaces/IERC1155Tracker.sol";
  * @title Tracker Contract Functions
  * @dev To Extend Contracts with Token Tracking Funtionality
  */
-abstract contract TrackerUpgradable {
+abstract contract Tracker {
     
     // Target Contract (External Source)
     address internal _targetContract;
@@ -37,12 +34,8 @@ abstract contract TrackerUpgradable {
     }
     */
 
-    /// Set Target Contract (Initializer)
-    function __setTargetContract(address targetContract) internal {
-        _setTargetContract(targetContract);
-    }
-    
     /// Set Target Contract
+    /// @dev Call this on constructor/initializer
     function _setTargetContract(address targetContract) internal {
         //Validate Interfaces
         // require(IERC165(targetContract).supportsInterface(type(IERC721).interfaceId), "Target Expected to Support IERC721"); //Additional 0.238Kb
