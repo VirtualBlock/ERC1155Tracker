@@ -23,10 +23,7 @@ abstract contract ERC721Upgradeable is
         ContextUpgradeable, 
         ERC165Upgradeable,
         Tracker, 
-        // IERC721Upgradeable,
-        IERC721Tracker
-        // IERC721MetadataUpgradeable
-         {
+        IERC721Tracker {
 
     using AddressUpgradeable for address;
     using StringsUpgradeable for uint256;
