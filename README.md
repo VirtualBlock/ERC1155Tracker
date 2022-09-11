@@ -1,15 +1,15 @@
-# ERC1155Tracker
+# ERC1155Tracker (& ERC721Tracker)
 
-ERC1155Tracker is an ERC-1155 compatible NFT contract in which ownership is mapped to tokens instead of wallet addresses.
+Tracker contracts are is an ERC-1155/ERC-721 compatible NFT contracts in which ownership is mapped to an SBT tokens instead of wallet addresses.
 
-This contract primitive alows you to attach tokens to other tokens. In this case we attach ERC1155 Tokens to ERC721 Tokens.
+This allows you to attach tokens to other ERC721 Tokens.
 
-It's primary use is to attach assets to a persona, SBT, or a legal entity, but it can also be used to bundle any other kind of NFTs and transfer infinite tokens with a single transaction.
+It's primary use is to attach assets to a persona, SBT, or a legal entity, but it can also be used to bundle any other kind of NFTs and transfer ownership over a basket of tokens using a single low-gas transaction.
 
 
 # Usage
 
-The ERC1155Tracker must co-exists with another ERC-721 compatible contract and tracks its owners. 
+The ERC1155Tracker must co-exists with another Soul (ERC-721 compatible) contract and tracks its owners. 
 
 * New tokens are assigned to existing ERC721 tokens and track their owner
 
