@@ -14,11 +14,12 @@ import "../interfaces/IERC721Tracker.sol";
 import "../abstract/Tracker.sol";
 
 /**
- * @dev Implementation of https://eips.ethereum.org/EIPS/eip-721[ERC721] Non-Fungible Token Standard, including
- * the Metadata extension, but not including the Enumerable extension, which is available separately as
- * {ERC721Enumerable}.
+ * @title ERC721 Tracker Upgradable
+ * @dev This contract is to be attached to an ERC721 (SoulBoundToken) contract and mapped to its tokens
+ * @dev Used for composibility and seamless connection to soulbound identitiy tokens
+ * @dev Balances are registered by owned token
  */
-abstract contract ERC721Upgradeable is 
+abstract contract ERC721TrackerUpgradable is 
         Initializable, 
         ContextUpgradeable, 
         ERC165Upgradeable,
@@ -35,10 +36,12 @@ abstract contract ERC721Upgradeable is
     string private _symbol;
 
     // Mapping from token ID to owner address
-    mapping(uint256 => address) private _owners;
+    // mapping(uint256 => address) private _owners;
+    mapping(uint256 => uint256) private _owners;    //tokenId => sbtId
 
     // Mapping owner address to token count
-    mapping(address => uint256) private _balances;
+    // mapping(address => uint256) private _balances;
+    mapping(uint256 => uint256) private _balances;
 
     // Mapping from token ID to approved address
     mapping(uint256 => address) private _tokenApprovals;
@@ -46,11 +49,26 @@ abstract contract ERC721Upgradeable is
     // Mapping from owner to operator approvals
     mapping(address => mapping(address => bool)) private _operatorApprovals;
 
+    // Index Unique Members for each TokenId
+    mapping(uint256 => uint256) internal _uniqueMemberTokens;
+
     /// Expose Target Contract
     function getTargetContract() public view override returns (address) {
         return _targetContract;
     }
-    
+
+    /// Get a Token ID Based on account address (Throws)
+    function getExtTokenId(address account) public view override returns(uint256) {
+        //Validate Input
+        require(account != _targetContract, "ERC721Tracker: source contract address is not a valid account");
+        //Get
+        uint256 ownerToken = _getExtTokenId(account);
+        //Validate Output
+        require(ownerToken != 0, "ERC721Tracker: requested account not found on source contract");
+        //Return
+        return ownerToken;
+    }
+
     /**
      * @dev Initializes the contract by setting a `name` and a `symbol` to the token collection.
      */
@@ -78,14 +96,14 @@ abstract contract ERC721Upgradeable is
      */
     function balanceOf(address owner) public view virtual override returns (uint256) {
         require(owner != address(0), "ERC721: address zero is not a valid owner");
-        return _balances[owner];
+        return _balances[getExtTokenId(owner)];
     }
 
     /**
      * @dev See {IERC721-ownerOf}.
      */
     function ownerOf(uint256 tokenId) public view virtual override returns (address) {
-        address owner = _owners[tokenId];
+        address owner = _getAccount(_owners[tokenId]);
         require(owner != address(0), "ERC721: invalid token ID");
         return owner;
     }
@@ -127,7 +145,7 @@ abstract contract ERC721Upgradeable is
      * @dev See {IERC721-approve}.
      */
     function approve(address to, uint256 tokenId) public virtual override {
-        address owner = ERC721Upgradeable.ownerOf(tokenId);
+        address owner = ownerOf(tokenId);
         require(to != owner, "ERC721: approval to current owner");
 
         require(
@@ -236,7 +254,7 @@ abstract contract ERC721Upgradeable is
      * and stop existing when they are burned (`_burn`).
      */
     function _exists(uint256 tokenId) internal view virtual returns (bool) {
-        return _owners[tokenId] != address(0);
+        return _owners[tokenId] != 0;
     }
 
     /**
@@ -247,7 +265,7 @@ abstract contract ERC721Upgradeable is
      * - `tokenId` must exist.
      */
     function _isApprovedOrOwner(address spender, uint256 tokenId) internal view virtual returns (bool) {
-        address owner = ERC721Upgradeable.ownerOf(tokenId);
+        address owner = ownerOf(tokenId);
         return (spender == owner || isApprovedForAll(owner, spender) || getApproved(tokenId) == spender);
     }
 
@@ -297,12 +315,15 @@ abstract contract ERC721Upgradeable is
         require(to != address(0), "ERC721: mint to the zero address");
         require(!_exists(tokenId), "ERC721: token already minted");
 
+        uint256 toSBT = getExtTokenId(to);
+
         _beforeTokenTransfer(address(0), to, tokenId);
 
-        _balances[to] += 1;
-        _owners[tokenId] = to;
+        _balances[toSBT] += 1;
+        _owners[tokenId] = toSBT;
 
         emit Transfer(address(0), to, tokenId);
+        emit TransferByToken(0, toSBT, tokenId);
 
         _afterTokenTransfer(address(0), to, tokenId);
     }
@@ -319,19 +340,22 @@ abstract contract ERC721Upgradeable is
      * Emits a {Transfer} event.
      */
     function _burn(uint256 tokenId) internal virtual {
-        address owner = ERC721Upgradeable.ownerOf(tokenId);
+        address from = ownerOf(tokenId);
+        
+        uint256 fromSBT = getExtTokenId(from);
 
-        _beforeTokenTransfer(owner, address(0), tokenId);
+        _beforeTokenTransfer(from, address(0), tokenId);
 
         // Clear approvals
         delete _tokenApprovals[tokenId];
 
-        _balances[owner] -= 1;
-        delete _owners[tokenId];
+        _balances[fromSBT] -= 1;
+        delete _owners[fromSBT];
 
-        emit Transfer(owner, address(0), tokenId);
+        emit Transfer(from, address(0), tokenId);
+        emit TransferByToken(fromSBT, 0, tokenId);
 
-        _afterTokenTransfer(owner, address(0), tokenId);
+        _afterTokenTransfer(from, address(0), tokenId);
     }
 
     /**
@@ -350,19 +374,23 @@ abstract contract ERC721Upgradeable is
         address to,
         uint256 tokenId
     ) internal virtual {
-        require(ERC721Upgradeable.ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
+        require(ownerOf(tokenId) == from, "ERC721: transfer from incorrect owner");
         require(to != address(0), "ERC721: transfer to the zero address");
+
+        uint256 fromSBT = getExtTokenId(from);
+        uint256 toSBT = getExtTokenId(to);
 
         _beforeTokenTransfer(from, to, tokenId);
 
         // Clear approvals from the previous owner
         delete _tokenApprovals[tokenId];
 
-        _balances[from] -= 1;
-        _balances[to] += 1;
-        _owners[tokenId] = to;
+        _balances[fromSBT] -= 1;
+        _balances[toSBT] += 1;
+        _owners[tokenId] = toSBT;
 
         emit Transfer(from, to, tokenId);
+        emit TransferByToken(fromSBT, toSBT, tokenId);
 
         _afterTokenTransfer(from, to, tokenId);
     }
@@ -374,7 +402,7 @@ abstract contract ERC721Upgradeable is
      */
     function _approve(address to, uint256 tokenId) internal virtual {
         _tokenApprovals[tokenId] = to;
-        emit Approval(ERC721Upgradeable.ownerOf(tokenId), to, tokenId);
+        emit Approval(ownerOf(tokenId), to, tokenId);
     }
 
     /**
