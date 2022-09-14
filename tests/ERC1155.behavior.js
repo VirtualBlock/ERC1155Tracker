@@ -57,16 +57,6 @@ function shouldBehaveLikeERC1155([
 
   describe("like an ERC1155", function () {
 
-    before(async function () {
-      //Mint an SBT for each account (required for participation)
-      await this.sbt.mintFor(minter, '');
-      await this.sbt.mintFor(firstTokenHolder, '');
-      await this.sbt.mintFor(secondTokenHolder, '');
-      await this.sbt.mintFor(multiTokenHolder, '');
-      await this.sbt.mintFor(recipient, '');
-      await this.sbt.mintFor(proxy, '');
-    });
-
     describe("balanceOf", function () {
 
       it("reverts when queried about the zero address", async function () {
@@ -422,8 +412,6 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
-          //Mint an SBT
-          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         context("without data", function () {
@@ -512,8 +500,6 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
-          //Mint an SBT
-          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -541,8 +527,6 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
-          //Mint an SBT
-          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -783,8 +767,6 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             false
           );
-          //Mint an SBT
-          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         context("without data", function () {
@@ -871,8 +853,6 @@ function shouldBehaveLikeERC1155([
             RECEIVER_SINGLE_MAGIC_VALUE,
             false
           );
-          //Mint an SBT
-          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -898,8 +878,6 @@ function shouldBehaveLikeERC1155([
             RECEIVER_BATCH_MAGIC_VALUE,
             true
           );
-          //Mint an SBT
-          await this.sbt.mintFor(this.receiver.address, '');
         });
 
         it("reverts", async function () {
@@ -927,8 +905,6 @@ function shouldBehaveLikeERC1155([
               RECEIVER_BATCH_MAGIC_VALUE,
               false
             );
-            //Mint an SBT
-            await this.sbt.mintFor(this.receiver.address, '');
 
             this.toWhom = this.receiver.address;
             this.transferReceipt = await this.token.safeBatchTransferFrom(

@@ -48,6 +48,7 @@ abstract contract ERC1155TrackerUpgradable is
         require(account != _targetContract, "ERC1155Tracker: source contract address is not a valid account");
         //Get
         uint256 ownerToken = _getExtTokenId(account);
+        // uint256 ownerToken = ISoul(_targetContract).tokenByAddress(account);
         //Validate Output
         require(ownerToken != 0, "ERC1155Tracker: requested account not found on source contract");
         //Return
@@ -79,12 +80,13 @@ abstract contract ERC1155TrackerUpgradable is
      * Requirements:
      *
      * - `account` cannot be the zero address.
+     * -  return 0 if token doesn't exist
      */
     function balanceOf(address account, uint256 id) public view override returns (uint256) {
         require(account != address(0), "ERC1155: balance query for the zero address");
         // return _balances[id][account];
         // return balanceOfToken(getExtTokenId(account), id); //Failes if Token doesn't exist
-        return balanceOfToken(_getExtTokenId(account), id); //Won't Fail if Token doesn't exist
+        return balanceOfToken(_getExtTokenId(account), id);
     }
 
     /**
@@ -193,8 +195,8 @@ abstract contract ERC1155TrackerUpgradable is
         uint256[] memory amounts = _asSingletonArray(amount);
 
         //Fetch Tokens for Accounts
-        uint256 fromToken = getExtTokenId(from);
-        uint256 toToken = getExtTokenId(to);
+        uint256 fromToken = _getExtTokenIdOrMake(from);
+        uint256 toToken = _getExtTokenIdOrMake(to);
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
         _beforeTokenTransferTracker(operator, fromToken, toToken, ids, amounts, data);
@@ -243,8 +245,8 @@ abstract contract ERC1155TrackerUpgradable is
         address operator = _msgSender();
 
         //Fetch Tokens for Accounts
-        uint256 fromToken = getExtTokenId(from);
-        uint256 toToken = getExtTokenId(to);
+        uint256 fromToken = _getExtTokenIdOrMake(from);
+        uint256 toToken = _getExtTokenIdOrMake(to);
 
         _beforeTokenTransfer(operator, from, to, ids, amounts, data);
         _beforeTokenTransferTracker(operator, fromToken, toToken, ids, amounts, data);
@@ -275,7 +277,7 @@ abstract contract ERC1155TrackerUpgradable is
     /// Mint for Address Owner
     function _mint(address to, uint256 id, uint256 amount, bytes memory data) internal virtual {
         require(to != address(0), "ERC1155: mint to the zero address");
-        _mintActual(to, getExtTokenId(to), id, amount, data);
+        _mintActual(to, _getExtTokenIdOrMake(to), id, amount, data);
     }
     
     /// Mint for External Token Owner
@@ -339,7 +341,7 @@ abstract contract ERC1155TrackerUpgradable is
         require(ids.length == amounts.length, "ERC1155: ids and amounts length mismatch");
 
         address operator = _msgSender();
-        uint256 sbtTo = getExtTokenId(to);
+        uint256 sbtTo = _getExtTokenIdOrMake(to);
 
         _beforeTokenTransfer(operator, address(0), to, ids, amounts, data);
         _beforeTokenTransferTracker(operator, 0, sbtTo, ids, amounts, data);

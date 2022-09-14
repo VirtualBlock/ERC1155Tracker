@@ -62,7 +62,8 @@ abstract contract ERC721TrackerUpgradable is
         //Validate Input
         require(account != _targetContract, "ERC721Tracker: source contract address is not a valid account");
         //Get
-        uint256 ownerToken = _getExtTokenId(account);
+        // uint256 ownerToken = _getExtTokenId(account);
+        uint256 ownerToken = ISoul(_targetContract).tokenByAddress(account);
         //Validate Output
         require(ownerToken != 0, "ERC721Tracker: requested account not found on source contract");
         //Return

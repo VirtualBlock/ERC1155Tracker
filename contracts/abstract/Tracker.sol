@@ -45,15 +45,14 @@ abstract contract Tracker {
         _targetContract = targetContract;
     }
 
-    /// Get a Token ID Based on account address
+    /// Get a Token ID Based on account address. Mint if needed.
     function _getExtTokenId(address account) internal view returns (uint256) {
-        // require(account != address(0), "Tracker: address zero is not a valid account");       //Redundant 
         require(account != _targetContract, "Tracker: source contract address is not a valid account");
-        //Run function on destination contract
-        return ISoul(_targetContract).tokenByAddress(account);
+        uint256 tokenId = ISoul(_targetContract).tokenByAddress(account);
+        return tokenId;
     }
     
-    /// Get SBT for Account. Mint if needed.
+    /// Get a Token ID Based on account address. Mint if needed.
     function _getExtTokenIdOrMake(address account) internal returns (uint256) {
         uint256 tokenId = _getExtTokenId(account);
         if(tokenId == 0){
@@ -61,7 +60,7 @@ abstract contract Tracker {
         }
         return tokenId;
     }
-    
+
     /// Get Owner Account By Owner Token
     function _getAccount(uint256 extTokenId) internal view returns (address) {
         return IERC721(_targetContract).ownerOf(extTokenId);

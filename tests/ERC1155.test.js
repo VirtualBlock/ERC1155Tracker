@@ -22,11 +22,6 @@ contract("ERC1155", function (accounts) {
 
   before(async function () {
     this.sbt = await SBTContract.new();
-    //Mint an SBT for each account (required for participation)
-    await this.sbt.mintFor(operator, '');
-    await this.sbt.mintFor(tokenHolder, '');
-    await this.sbt.mintFor(tokenBatchHolder, '');
-    await this.sbt.mintFor(tokenBatchHolder2, '');
   });
 
   beforeEach(async function () {
