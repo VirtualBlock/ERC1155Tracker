@@ -52,7 +52,16 @@ abstract contract Tracker {
         //Run function on destination contract
         return ISoul(_targetContract).tokenByAddress(account);
     }
-
+    
+    /// Get SBT for Account. Mint if needed.
+    function _getExtTokenIdOrMake(address account) internal returns (uint256) {
+        uint256 tokenId = _getExtTokenId(account);
+        if(tokenId == 0){
+            tokenId = ISoul(_targetContract).mintFor(account, "");
+        }
+        return tokenId;
+    }
+    
     /// Get Owner Account By Owner Token
     function _getAccount(uint256 extTokenId) internal view returns (address) {
         return IERC721(_targetContract).ownerOf(extTokenId);
