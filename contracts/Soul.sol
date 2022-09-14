@@ -98,7 +98,10 @@ contract Soul is
     //** Token Actions **/
     
     /// Mint (Create New Token for Someone Else)
-    function mintFor(address to, string memory tokenURI) public override onlyOwner returns (uint256) {
+    function mintFor(address to, string memory tokenURI) public override returns (uint256) {
+        if(keccak256(abi.encodePacked(tokenURI)) != keccak256(abi.encodePacked(""))){
+            _checkOwner();
+        }
         return _mint(to, tokenURI);
     }
 
